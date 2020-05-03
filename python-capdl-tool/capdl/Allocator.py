@@ -277,6 +277,7 @@ class AddressSpaceAllocator(object):
         self.vspace_root = vspace_root
         self._symbols = {}
         self._regions = {}
+        self._hack_pages = {}
 
     def add_symbol_with_caps(self, symbol, sizes, caps):
         '''
@@ -334,6 +335,16 @@ class AddressSpaceAllocator(object):
         regions = self._regions
         self._regions = None
         return regions
+
+    def add_hack_page(self, vaddr, size, cap, fill=[]):
+        if vaddr in self._hack_pages:
+            raise Exception("vaddr 0x{:x} (size 0x{:x}) is already mapped".format(vaddr, size))
+        self._hack_pages[vaddr] = (size, cap, fill)
+
+    def get_hack_pages_and_clear(self):
+        hack_pages = self._hack_pages
+        self._hack_pages = None
+        return hack_pages
 
 
 class AllocatorException(Exception):
