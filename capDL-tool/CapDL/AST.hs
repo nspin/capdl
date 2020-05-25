@@ -35,6 +35,8 @@ data TCBExtraParam =
       ip :: Word }
   | SP {
       sp :: Word }
+  | SPSR {
+      spsr :: Word }
   | Prio {
       prio :: Integer }
   | MaxPrio {

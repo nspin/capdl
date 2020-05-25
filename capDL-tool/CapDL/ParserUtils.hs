@@ -190,6 +190,13 @@ tcb_sp = do
     n <- number
     return $ SP n
 
+tcb_spsr :: MapParser TCBExtraParam
+tcb_spsr = do
+    reserved "spsr"
+    colon
+    n <- number
+    return $ SPSR n
+
 tcb_prio :: MapParser TCBExtraParam
 tcb_prio = do
     reserved "prio"
@@ -222,6 +229,7 @@ tcb_extra_param = do
     param <-   (tcb_addr
             <|> tcb_ip
             <|> tcb_sp
+            <|> tcb_spsr
             <|> tcb_prio
             <|> tcb_max_prio
             <|> tcb_resume

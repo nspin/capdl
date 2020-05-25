@@ -273,6 +273,7 @@ typedef struct {
     uint8_t domain;
     seL4_Word pc;
     seL4_Word sp;
+    seL4_Word spsr;
     const char *elf_name;
     const seL4_Word *init;
     seL4_Word init_sz;
@@ -570,6 +571,11 @@ static inline seL4_Word CDL_TCB_PC(CDL_Object *obj)
 static inline seL4_Word CDL_TCB_SP(CDL_Object *obj)
 {
     return obj->tcb_extra.sp;
+}
+
+static inline seL4_Word CDL_TCB_SPSR(CDL_Object *obj)
+{
+    return obj->tcb_extra.spsr;
 }
 
 static inline const char *CDL_TCB_ElfName(CDL_Object *obj)

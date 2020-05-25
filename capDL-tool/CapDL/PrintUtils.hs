@@ -80,6 +80,10 @@ prettySP :: Maybe Word -> Doc
 prettySP Nothing = empty
 prettySP (Just sp) = text "sp:" <+> num sp
 
+prettySPSR :: Maybe Word -> Doc
+prettySPSR Nothing = empty
+prettySPSR (Just spsr) = text "spsr:" <+> num spsr
+
 prettyPrio :: Maybe Integer -> Doc
 prettyPrio Nothing = empty
 prettyPrio (Just prio) = text "prio:" <+> (text $ show prio)
@@ -105,9 +109,9 @@ prettyFaultEP (Just fault_ep) = text "fault_ep:" <+> (text $ show fault_ep)
 
 prettyExtraInfo :: Maybe TCBExtraInfo -> Doc
 prettyExtraInfo Nothing = empty
-prettyExtraInfo (Just (TCBExtraInfo addr ip sp prio max_prio affinity resume)) =
+prettyExtraInfo (Just (TCBExtraInfo addr ip sp spsr prio max_prio affinity resume)) =
     hsep $ punctuate comma $ filter (not . isEmpty)
-                   [prettyAddr addr, prettyIP ip, prettySP sp, prettyPrio prio, prettyMaxPrio max_prio, prettyAffinity affinity, prettyResume resume]
+                   [prettyAddr addr, prettyIP ip, prettySP sp, prettySPSR spsr, prettyPrio prio, prettyMaxPrio max_prio, prettyAffinity affinity, prettyResume resume]
 
 prettyInitArguments :: [Word] -> Doc
 prettyInitArguments [] = empty

@@ -212,6 +212,11 @@ getTCBsp [] = Nothing
 getTCBsp (TCBExtraParam (SP sp) : _) = Just sp
 getTCBsp (_ : xs ) = getTCBsp xs
 
+getTCBspsr :: [ObjParam] -> Maybe Word
+getTCBspsr [] = Nothing
+getTCBspsr (TCBExtraParam (SPSR spsr) : _) = Just spsr
+getTCBspsr (_ : xs ) = getTCBspsr xs
+
 getTCBprio :: [ObjParam] -> Maybe Integer
 getTCBprio [] = Nothing
 getTCBprio (TCBExtraParam (Prio prio) : _) = Just prio
@@ -235,12 +240,12 @@ getTCBresume (_ : xs) = getTCBresume xs
 getExtraInfo :: Name -> [ObjParam] -> Maybe TCBExtraInfo
 getExtraInfo n params =
     -- FIXME: This is really hacky hardcoding the acceptable combinations of attributes.
-    case (getTCBAddr params, getTCBip params, getTCBsp params, getTCBprio params, getTCBmax_prio params, getTCBaffinity params, getTCBresume params) of
-        (Just addr, Just ip, Just sp, Just prio, Just max_prio, Just affinity, resume) ->
-            Just $ TCBExtraInfo addr (Just ip) (Just sp) (Just prio) (Just max_prio) (Just affinity) resume
-        (Just addr, Nothing, Nothing, Nothing, Nothing, Just affinity, resume) ->
-            Just $ TCBExtraInfo addr Nothing Nothing Nothing Nothing (Just affinity) resume
-        (Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing) -> Nothing
+    case (getTCBAddr params, getTCBip params, getTCBsp params, getTCBspsr params, getTCBprio params, getTCBmax_prio params, getTCBaffinity params, getTCBresume params) of
+        (Just addr, Just ip, Just sp, spsr, Just prio, Just max_prio, Just affinity, resume) ->
+            Just $ TCBExtraInfo addr (Just ip) (Just sp) spsr (Just prio) (Just max_prio) (Just affinity) resume
+        (Just addr, Nothing, Nothing, Nothing, Nothing, Nothing, Just affinity, resume) ->
+            Just $ TCBExtraInfo addr Nothing Nothing Nothing Nothing Nothing (Just affinity) resume
+        (Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing) -> Nothing
         params -> error $ "Incorrect extra tcb parameters: " ++ n ++ show params
 
 getTCBDom :: [ObjParam] -> Integer

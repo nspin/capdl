@@ -144,6 +144,7 @@ data TCBExtraInfo = TCBExtraInfo {
     ipcBufferAddr :: Word,
     ip :: Maybe Word,
     sp :: Maybe Word,
+    spsr :: Maybe Word,
     prio :: Maybe Integer,
     max_prio :: Maybe Integer,
     affin :: Maybe Integer,
