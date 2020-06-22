@@ -1201,6 +1201,9 @@ static void configure_tcb(CDL_Model *spec, CDL_ObjID tcb)
 #endif
 
     if (argc > reg_args) {
+#if 1
+        assert(0);
+#else
 #ifdef CONFIG_CAPDL_LOADER_CC_REGISTERS
         ZF_LOGF("TCB %s has more than four arguments, which is not supported using"
                 " the register calling convention", CDL_Obj_Name(&spec->objects[tcb]));
@@ -1244,6 +1247,7 @@ static void configure_tcb(CDL_Model *spec, CDL_ObjID tcb)
 #ifdef CONFIG_ARCH_ARM
         attribs |= seL4_ARM_ExecuteNever;
 #endif
+        // TODO copy_addr_with_pt is small page, so assumes first page of stack is small page
         int error = seL4_ARCH_Page_Map(frame, seL4_CapInitThreadPD, (seL4_Word)copy_addr_with_pt,
                                        seL4_ReadWrite, attribs);
         ZF_LOGF_IFERR(error, "");
@@ -1268,6 +1272,7 @@ static void configure_tcb(CDL_Model *spec, CDL_ObjID tcb)
         error = seL4_ARCH_Page_Unmap(frame);
         ZF_LOGF_IFERR(error, "");
 #endif //CONFIG_CAPDL_LOADER_CC_REGISTERS
+#endif //0
     }
 
     seL4_UserContext regs = {
