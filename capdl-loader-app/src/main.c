@@ -1435,7 +1435,7 @@ static void map_page(CDL_Model *spec UNUSED, CDL_Cap *page_cap, CDL_ObjID pd_id,
     }
 #endif
     seL4_ARCH_VMAttributes vm_attribs = CDL_Cap_VMAttributes(page_cap);
-    ZF_LOGD("   Mapping %s into %s with rights={G: %d, R: %d, W: %d}, vaddr=0x%x, vm_attribs=0x%x",
+    ZF_LOGD("   Mapping %s into %s with rights={G: %d, R: %d, W: %d}, vaddr=0x%lx, vm_attribs=0x%x",
             CDL_Obj_Name(&spec->objects[page]),
             CDL_Obj_Name(&spec->objects[pd_id]),
             seL4_CapRights_get_capAllowGrant(rights),
