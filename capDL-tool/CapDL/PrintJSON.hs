@@ -126,7 +126,7 @@ instance ToJSON Cap where
         Cap_Notification cap -> tagged "Notification" cap
         Cap_CNode cap -> tagged "CNode" cap
         Cap_TCB cap -> tagged "Tcb" cap
-        Cap_IRQHandler cap -> tagged "IRQHandler" cap
+        Cap_IRQHandler cap -> tagged "IrqHandler" cap
         Cap_VCPU cap -> tagged "VCpu" cap
         Cap_Frame cap -> tagged "Frame" cap
         Cap_PageTable cap -> tagged "PageTable" cap
