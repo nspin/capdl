@@ -432,7 +432,11 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
             in case arch of
                 C.RISCV -> ObjectPageTable { is_root = pageTableIsVSpace objId, level = Nothing, slots = renderedSlots }
                 _ -> ObjectPageTable { is_root = False, level = Just 3, slots = renderedSlots }
-        C.PD slots -> Object_PageTable (ObjectPageTable { is_root = False, level = Just 2, slots = renderCapTable slots })
+        C.PD slots -> Object_PageTable $
+            let renderedSlots = renderCapTable slots
+            in case arch of
+                C.ARM11 -> ObjectPageTable { is_root = True, level = Just 0, slots = renderedSlots }
+                _ -> ObjectPageTable { is_root = False, level = Just 2, slots = renderedSlots }
         C.PUD slots -> Object_PageTable (ObjectPageTable { is_root = False, level = Just 1, slots = renderCapTable slots })
         C.PGD slots -> Object_PageTable (ObjectPageTable { is_root = True, level = Just 0, slots = renderCapTable slots })
         C.PDPT slots -> Object_PageTable (ObjectPageTable { is_root = False, level = Just 1, slots = renderCapTable slots })
