@@ -79,6 +79,7 @@ data Object =
     | Object_ArmIRQ ObjectArmIRQ
     | Object_IRQMSI ObjectIRQMSI
     | Object_IRQIOAPIC ObjectIRQIOAPIC
+    | Object_IOPorts ObjectIOPorts
     | Object_SchedContext ObjectSchedContext
     | Object_Reply
     deriving (Eq, Show)
@@ -98,6 +99,7 @@ instance ToJSON Object where
         Object_ArmIRQ obj -> tagged "ArmIrq" obj
         Object_IRQMSI obj -> tagged "IrqMsi" obj
         Object_IRQIOAPIC obj -> tagged "IrqIOApic" obj
+        Object_IOPorts obj -> tagged "IOPorts" obj
         Object_SchedContext obj -> tagged "SchedContext" obj
         Object_Reply -> String "Reply"
 
@@ -115,6 +117,7 @@ data Cap =
     | Cap_ArmIRQHandler CapArmIRQHandler
     | Cap_IRQMSIHandler CapIRQMSIHandler
     | Cap_IRQIOAPICHandler CapIRQIOAPICHandler
+    | Cap_IOPorts CapIOPorts
     | Cap_SchedContext CapSchedContext
     | Cap_Reply CapReply
     deriving (Eq, Show)
@@ -134,6 +137,7 @@ instance ToJSON Cap where
         Cap_ArmIRQHandler cap -> tagged "ArmIrqHandler" cap
         Cap_IRQMSIHandler cap -> tagged "IrqMsiHandler" cap
         Cap_IRQIOAPICHandler cap -> tagged "IrqIOApicHandler" cap
+        Cap_IOPorts cap -> tagged "IOPorts" cap
         Cap_SchedContext cap -> tagged "SchedContext" cap
         Cap_Reply cap -> tagged "Reply" cap
 
@@ -282,6 +286,11 @@ data ObjectIRQIOAPICExtraInfo = ObjectIRQIOAPICExtraInfo
     , polarity :: Word
     } deriving (Eq, Show, Generic, ToJSON)
 
+data ObjectIOPorts = ObjectIOPorts
+    { start_port :: Word
+    , end_port :: Word
+    } deriving (Eq, Show, Generic, ToJSON)
+
 data ObjectSchedContext = ObjectSchedContext
     { size_bits :: Word
     , extra :: ObjectSchedContextExtraInfo
@@ -350,6 +359,10 @@ data CapIRQMSIHandler = CapIRQMSIHandler
     } deriving (Eq, Show, Generic, ToJSON)
 
 data CapIRQIOAPICHandler = CapIRQIOAPICHandler
+    { object :: ObjID
+    } deriving (Eq, Show, Generic, ToJSON)
+
+data CapIOPorts = CapIOPorts
     { object :: ObjID
     } deriving (Eq, Show, Generic, ToJSON)
 
@@ -447,6 +460,7 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.ARMIrq slots trigger target -> Object_ArmIRQ (ObjectArmIRQ (renderCapTable slots) (ObjectArmIRQExtraInfo trigger target))
         C.MSIIrq slots handle bus dev fun -> Object_IRQMSI (ObjectIRQMSI (renderCapTable slots) (ObjectIRQMSIExtraInfo handle bus dev fun))
         C.IOAPICIrq slots ioapic pin ioapic_level polarity -> Object_IRQIOAPIC (ObjectIRQIOAPIC (renderCapTable slots) (ObjectIRQIOAPICExtraInfo ioapic pin ioapic_level polarity))
+        C.IOPorts (start_port, end_port) -> Object_IOPorts (ObjectIOPorts start_port end_port)
         C.ASIDPool slots (Just asidHigh) -> assert (M.null slots) Object_ASIDPool (ObjectASIDPool asidHigh)
         C.RTReply -> Object_Reply
         C.TCB
@@ -515,6 +529,7 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.ARMIRQHandlerCap capObj -> Cap_ArmIRQHandler (CapArmIRQHandler (renderId capObj))
         C.IRQMSIHandlerCap capObj -> Cap_IRQMSIHandler (CapIRQMSIHandler (renderId capObj))
         C.IRQIOAPICHandlerCap capObj -> Cap_IRQIOAPICHandler (CapIRQIOAPICHandler (renderId capObj))
+        C.IOPortsCap capObj -> Cap_IOPorts (CapIOPorts (renderId capObj))
         C.ASIDPoolCap capObj -> Cap_ASIDPool (CapASIDPool (renderId capObj))
         C.SCCap capObj -> Cap_SchedContext (CapSchedContext (renderId capObj))
         C.RTReplyCap capObj -> Cap_Reply (CapReply (renderId capObj))
