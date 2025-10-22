@@ -340,6 +340,7 @@ data CapFrame = CapFrame
     { object :: ObjID
     , rights :: Rights
     , cached :: Bool
+    , executable :: Bool
     } deriving (Eq, Show, Generic, ToJSON)
 
 data CapPageTable = CapPageTable
@@ -519,7 +520,7 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.TCBCap capObj -> Cap_TCB (CapTCB (renderId capObj))
         C.IRQHandlerCap capObj -> Cap_IRQHandler (CapIRQHandler (renderId capObj))
         C.VCPUCap capObj -> Cap_VCPU (CapVCPU (renderId capObj))
-        C.FrameCap { capObj, capRights, capCached } -> Cap_Frame (CapFrame (renderId capObj) (renderRights capRights) capCached)
+        C.FrameCap { capObj, capRights, capCached, capExecutable } -> Cap_Frame (CapFrame (renderId capObj) (renderRights capRights) capCached capExecutable)
         C.PTCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
         C.PDCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
         C.PUDCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
