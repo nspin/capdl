@@ -160,12 +160,6 @@ instance ToJSON Rights where
 emptyRights :: Rights
 emptyRights = Rights False False False False
 
-data FrameInit = FrameInit Fill
-    deriving (Eq, Show)
-
-instance ToJSON FrameInit where
-    toJSON (FrameInit fill) = tagged "Fill" fill
-
 data Fill = Fill
     { entries :: [FillEntry]
     } deriving (Eq, Show, Generic, ToJSON)
@@ -239,7 +233,7 @@ data ObjectIRQ = ObjectIRQ
 data ObjectFrame = ObjectFrame
     { size_bits :: Word
     , paddr :: Maybe Word
-    , init :: FrameInit
+    , init :: Fill
     } deriving (Eq, Show, Generic, ToJSON)
 
 data ObjectPageTable = ObjectPageTable
@@ -440,7 +434,7 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.Untyped { maybeSizeBits = Just sizeBits, maybePaddr } -> Object_Untyped (ObjectUntyped sizeBits maybePaddr)
         C.Endpoint -> Object_Endpoint
         C.Notification -> Object_Notification
-        C.Frame { vmSizeBits, maybePaddr, maybeFill } -> Object_Frame (ObjectFrame vmSizeBits maybePaddr (renderFrameInit maybeFill))
+        C.Frame { vmSizeBits, maybePaddr, maybeFill } -> Object_Frame (ObjectFrame vmSizeBits maybePaddr (renderFill maybeFill))
         C.PT slots -> Object_PageTable $
             let renderedSlots = renderCapTable slots
             in case arch of
@@ -539,8 +533,8 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
 renderName :: C.ObjID -> String
 renderName (name, Nothing) = name
 
-renderFrameInit :: Maybe [[String]] -> FrameInit
-renderFrameInit = FrameInit . Fill . map f . concat . toList
+renderFill :: Maybe [[String]] -> Fill
+renderFill = Fill . map f . concat . toList
   where
     f (dest_offset:dest_len:rest) = FillEntry
         { range = FillEntryRange { start = start, end = end }
