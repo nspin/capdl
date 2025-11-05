@@ -1,32 +1,38 @@
-{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
-
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
+
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use camelCase" #-}
+{-# HLINT ignore "Use newtype instead of data" #-}
 
 module CapDL.PrintJSON
     ( printJSON
     ) where
 
 import Control.Exception (assert)
-import Data.Aeson (Key, ToJSON, Value(String), encode, toJSON, (.=))
+import Data.Aeson (ToJSON, encode, toJSON, FromJSON, genericToJSON, genericToEncoding, genericParseJSON)
 import Data.ByteString.Lazy.Char8 (unpack)
 import Data.Foldable
 import Data.List
 import Data.Maybe
-import Data.Word (Word64)
 import Data.Ord (comparing)
+import Data.Word (Word64)
 import Debug.Trace (traceShow)
 import GHC.Generics (Generic)
-import qualified Data.Aeson as Aeson
+import qualified Data.Aeson as A
 import qualified Data.Map as M
 import qualified Data.Set as S
 
 import CapDL.PrintUtils (sortObjects)
 import qualified CapDL.Model as C
+
+-- TODO template haskell for sum types?
 
 ---
 
@@ -48,171 +54,137 @@ data Spec = Spec
     , asid_slots :: [ObjID]
     , root_objects :: Range ObjID
     , untyped_covers :: [UntypedCover]
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data Range a = Range
     { start :: a
     , end :: a
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data UntypedCover = UntypedCover
     { parent :: ObjID
     , children :: Range ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data NamedObject = NamedObject
     { name :: String
     , object :: Object
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data Object =
       Object_Untyped ObjectUntyped
-    | Object_Endpoint
-    | Object_Notification
+    | Object_Endpoint UnitCompat
+    | Object_Notification UnitCompat
     | Object_CNode ObjectCNode
-    | Object_TCB ObjectTCB
-    | Object_IRQ ObjectIRQ
-    | Object_VCPU
+    | Object_Tcb ObjectTCB
+    | Object_Irq ObjectIRQ
+    | Object_VCpu UnitCompat
     | Object_Frame ObjectFrame
     | Object_PageTable ObjectPageTable
-    | Object_ASIDPool ObjectASIDPool
-    | Object_ArmIRQ ObjectArmIRQ
-    | Object_IRQMSI ObjectIRQMSI
-    | Object_IRQIOAPIC ObjectIRQIOAPIC
+    | Object_AsidPool ObjectASIDPool
+    | Object_ArmIrq ObjectArmIRQ
+    | Object_IrqMsi ObjectIRQMSI
+    | Object_IrqIOApic ObjectIRQIOAPIC
     | Object_IOPorts ObjectIOPorts
     | Object_SchedContext ObjectSchedContext
-    | Object_Reply
-    deriving (Eq, Show)
+    | Object_Reply UnitCompat
+    deriving (Eq, Show, Generic)
 
 instance ToJSON Object where
-    toJSON obj = case obj of
-        Object_Untyped obj -> tagged "Untyped" obj
-        Object_Endpoint -> String "Endpoint"
-        Object_Notification -> String "Notification"
-        Object_CNode obj -> tagged "CNode" obj
-        Object_TCB obj -> tagged "Tcb" obj
-        Object_IRQ obj -> tagged "Irq" obj
-        Object_VCPU -> String "VCpu"
-        Object_Frame obj -> tagged "Frame" obj
-        Object_PageTable obj -> tagged "PageTable" obj
-        Object_ASIDPool obj -> tagged "AsidPool" obj
-        Object_ArmIRQ obj -> tagged "ArmIrq" obj
-        Object_IRQMSI obj -> tagged "IrqMsi" obj
-        Object_IRQIOAPIC obj -> tagged "IrqIOApic" obj
-        Object_IOPorts obj -> tagged "IOPorts" obj
-        Object_SchedContext obj -> tagged "SchedContext" obj
-        Object_Reply -> String "Reply"
+    toJSON = genericToJSON $ sumTypeOptions "Object_"
+    toEncoding = genericToEncoding $ sumTypeOptions "Object_"
+
+instance FromJSON Object where
+    parseJSON = genericParseJSON $ sumTypeOptions "Object_"
 
 data Cap =
       Cap_Untyped CapUntyped
     | Cap_Endpoint CapEndpoint
     | Cap_Notification CapNotification
     | Cap_CNode CapCNode
-    | Cap_TCB CapTCB
-    | Cap_IRQHandler CapIRQHandler
-    | Cap_VCPU CapVCPU
+    | Cap_Tcb CapTCB
+    | Cap_IrqHandler CapIRQHandler
+    | Cap_VCpu CapVCPU
     | Cap_Frame CapFrame
     | Cap_PageTable CapPageTable
-    | Cap_ASIDPool CapASIDPool
-    | Cap_ArmIRQHandler CapArmIRQHandler
-    | Cap_IRQMSIHandler CapIRQMSIHandler
-    | Cap_IRQIOAPICHandler CapIRQIOAPICHandler
+    | Cap_AsidPool CapASIDPool
+    | Cap_ArmIrqHandler CapArmIRQHandler
+    | Cap_IrqMsiHandler CapIRQMSIHandler
+    | Cap_IrqIOApicHandler CapIRQIOAPICHandler
     | Cap_IOPorts CapIOPorts
     | Cap_SchedContext CapSchedContext
     | Cap_Reply CapReply
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 instance ToJSON Cap where
-    toJSON cap' = case cap' of
-        Cap_Untyped cap -> tagged "Untyped" cap
-        Cap_Endpoint cap -> tagged "Endpoint" cap
-        Cap_Notification cap -> tagged "Notification" cap
-        Cap_CNode cap -> tagged "CNode" cap
-        Cap_TCB cap -> tagged "Tcb" cap
-        Cap_IRQHandler cap -> tagged "IrqHandler" cap
-        Cap_VCPU cap -> tagged "VCpu" cap
-        Cap_Frame cap -> tagged "Frame" cap
-        Cap_PageTable cap -> tagged "PageTable" cap
-        Cap_ASIDPool cap -> tagged "AsidPool" cap
-        Cap_ArmIRQHandler cap -> tagged "ArmIrqHandler" cap
-        Cap_IRQMSIHandler cap -> tagged "IrqMsiHandler" cap
-        Cap_IRQIOAPICHandler cap -> tagged "IrqIOApicHandler" cap
-        Cap_IOPorts cap -> tagged "IOPorts" cap
-        Cap_SchedContext cap -> tagged "SchedContext" cap
-        Cap_Reply cap -> tagged "Reply" cap
+    toJSON = genericToJSON $ sumTypeOptions "Cap_"
+    toEncoding = genericToEncoding $ sumTypeOptions "Cap_"
+
+instance FromJSON Cap where
+    parseJSON = genericParseJSON $ sumTypeOptions "Cap_"
 
 data Rights = Rights
-    { rights_read :: Bool
-    , rights_write :: Bool
-    , rights_grant :: Bool
-    , rights_grant_reply :: Bool
-    } deriving (Eq, Show)
-
--- HACK until NoFieldSelectors is available
-instance ToJSON Rights where
-    toJSON Rights {..} = Aeson.object
-        [ "read" .= rights_read
-        , "write" .= rights_write
-        , "grant" .= rights_grant
-        , "grant_reply" .= rights_grant_reply
-        ]
-
-emptyRights :: Rights
-emptyRights = Rights False False False False
+    { read :: Bool
+    , write :: Bool
+    , grant :: Bool
+    , grant_reply :: Bool
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data Fill = Fill
     { entries :: [FillEntry]
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data FillEntry = FillEntry
     { range :: FillEntryRange
     , content :: FillEntryContent
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data FillEntryRange = FillEntryRange
     { start :: Word
     , end :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data FillEntryContent =
       FillEntryContent_Data FillEntryContentFile
     | FillEntryContent_BootInfo FillEntryContentBootInfo
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 instance ToJSON FillEntryContent where
-    toJSON content = case content of
-        FillEntryContent_Data file -> tagged "Data" file
-        FillEntryContent_BootInfo bootinfo -> tagged "BootInfo" bootinfo
+    toJSON = genericToJSON $ sumTypeOptions "FillEntryContent_"
+    toEncoding = genericToEncoding $ sumTypeOptions "FillEntryContent_"
+
+instance FromJSON FillEntryContent where
+    parseJSON = genericParseJSON $ sumTypeOptions "FillEntryContent_"
 
 data FillEntryContentFile = FillEntryContentFile
     { file :: String
     , file_offset :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data FillEntryContentBootInfo = FillEntryContentBootInfo
     { id :: FillEntryContentBootInfoId
     , offset :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data FillEntryContentBootInfoId =
       Padding
     | Fdt
-    deriving (Eq, Show, Generic, ToJSON)
+    deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectUntyped = ObjectUntyped
     { size_bits :: Word
     , paddr :: Maybe Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectCNode = ObjectCNode
     { size_bits :: Word
     , slots :: CapTable
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectTCB = ObjectTCB
     { slots :: CapTable
     , extra :: ObjectTCBExtraInfo
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectTCBExtraInfo = ObjectTCBExtraInfo
     { ipc_buffer_addr :: Word
@@ -224,153 +196,167 @@ data ObjectTCBExtraInfo = ObjectTCBExtraInfo
     , sp :: Word
     , gprs :: [Word]
     , master_fault_ep :: CPtr
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectIRQ = ObjectIRQ
     { slots :: CapTable
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectFrame = ObjectFrame
     { size_bits :: Word
     , paddr :: Maybe Word
     , init :: Fill
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectPageTable = ObjectPageTable
     { is_root :: Bool
     , level :: Maybe Int
     , slots :: CapTable
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectASIDPool = ObjectASIDPool
     { high :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectArmIRQ = ObjectArmIRQ
     { slots :: CapTable
     , extra :: ObjectArmIRQExtraInfo
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectArmIRQExtraInfo = ObjectArmIRQExtraInfo
     { trigger :: Word
     , target :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectIRQMSI = ObjectIRQMSI
     { slots :: CapTable
     , extra :: ObjectIRQMSIExtraInfo
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectIRQMSIExtraInfo = ObjectIRQMSIExtraInfo
     { handle:: Word
     , pci_bus :: Word
     , pci_dev :: Word
     , pci_func :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectIRQIOAPIC = ObjectIRQIOAPIC
     { slots :: CapTable
     , extra :: ObjectIRQIOAPICExtraInfo
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectIRQIOAPICExtraInfo = ObjectIRQIOAPICExtraInfo
     { ioapic :: Word
     , pin :: Word
     , level :: Word
     , polarity :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectIOPorts = ObjectIOPorts
     { start_port :: Word
     , end_port :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectSchedContext = ObjectSchedContext
     { size_bits :: Word
     , extra :: ObjectSchedContextExtraInfo
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data ObjectSchedContextExtraInfo = ObjectSchedContextExtraInfo
     { period :: Word64
     , budget :: Word64
     , badge :: Badge
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapUntyped = CapUntyped
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapEndpoint = CapEndpoint
     { object :: ObjID
     , badge :: Badge
     , rights :: Rights
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapNotification = CapNotification
     { object :: ObjID
     , badge :: Badge
     , rights :: Rights
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapCNode = CapCNode
     { object :: ObjID
     , guard :: Word
     , guard_size :: Word
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapTCB = CapTCB
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapIRQHandler = CapIRQHandler
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapVCPU = CapVCPU
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapFrame = CapFrame
     { object :: ObjID
     , rights :: Rights
     , cached :: Bool
     , executable :: Bool
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapPageTable = CapPageTable
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapASIDPool = CapASIDPool
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapArmIRQHandler = CapArmIRQHandler
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapIRQMSIHandler = CapIRQMSIHandler
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapIRQIOAPICHandler = CapIRQIOAPICHandler
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapIOPorts = CapIOPorts
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapSchedContext = CapSchedContext
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapReply = CapReply
     { object :: ObjID
-    } deriving (Eq, Show, Generic, ToJSON)
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
-tagged :: ToJSON a => Key -> a -> Value
-tagged tag value = Aeson.object [ tag .= toJSON value ]
+---
+
+sumTypeOptions :: String -> A.Options
+sumTypeOptions prefix = A.defaultOptions
+    { A.constructorTagModifier = fromJust . stripPrefix prefix
+    , A.sumEncoding = A.ObjectWithSingleField
+    }
+
+data UnitCompat = UnitCompat
+    deriving (Eq, Show, Generic)
+
+instance ToJSON UnitCompat where
+    toJSON UnitCompat = A.Null
+
+instance FromJSON UnitCompat where
+    parseJSON _ = pure UnitCompat
 
 ---
 
@@ -390,7 +376,7 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
     rootObjectIds = map fst sorted
       where
         allChildren = S.fromList . concat $ M.elems coverMap
-        unsorted = filter (flip S.notMember allChildren) (M.keys objMap)
+        unsorted = filter (`S.notMember` allChildren) (M.keys objMap)
         sorted = sortObjects objSizeMap [ (objId, objMap M.! objId) | objId <- unsorted ]
 
     (_, childObjectIds, untypedCovers) = foldr f (numRootObjects, [], []) (concatMap M.toList (objectLayers coverMap))
@@ -432,8 +418,8 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
 
     renderObj objId = case objMap M.! objId of
         C.Untyped { maybeSizeBits = Just sizeBits, maybePaddr } -> Object_Untyped (ObjectUntyped sizeBits maybePaddr)
-        C.Endpoint -> Object_Endpoint
-        C.Notification -> Object_Notification
+        C.Endpoint -> Object_Endpoint UnitCompat
+        C.Notification -> Object_Notification UnitCompat
         C.Frame { vmSizeBits, maybePaddr, maybeFill } -> Object_Frame (ObjectFrame vmSizeBits maybePaddr (renderFill maybeFill))
         C.PT slots -> Object_PageTable $
             let renderedSlots = renderCapTable slots
@@ -449,15 +435,15 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.PGD slots -> Object_PageTable (ObjectPageTable { is_root = True, level = Just 0, slots = renderCapTable slots })
         C.PDPT slots -> Object_PageTable (ObjectPageTable { is_root = False, level = Just 1, slots = renderCapTable slots })
         C.PML4 slots -> Object_PageTable (ObjectPageTable { is_root = True, level = Just 0, slots = renderCapTable slots })
-        C.CNode slots 0 -> Object_IRQ (ObjectIRQ (renderCapTable slots)) -- model uses 0-sized CNodes as token objects for IRQs
+        C.CNode slots 0 -> Object_Irq (ObjectIRQ (renderCapTable slots)) -- model uses 0-sized CNodes as token objects for IRQs
         C.CNode slots sizeBits -> Object_CNode (ObjectCNode sizeBits (renderCapTable slots))
-        C.VCPU -> Object_VCPU
-        C.ARMIrq slots trigger target -> Object_ArmIRQ (ObjectArmIRQ (renderCapTable slots) (ObjectArmIRQExtraInfo trigger target))
-        C.MSIIrq slots handle bus dev fun -> Object_IRQMSI (ObjectIRQMSI (renderCapTable slots) (ObjectIRQMSIExtraInfo handle bus dev fun))
-        C.IOAPICIrq slots ioapic pin ioapic_level polarity -> Object_IRQIOAPIC (ObjectIRQIOAPIC (renderCapTable slots) (ObjectIRQIOAPICExtraInfo ioapic pin ioapic_level polarity))
+        C.VCPU -> Object_VCpu UnitCompat
+        C.ARMIrq slots trigger target -> Object_ArmIrq (ObjectArmIRQ (renderCapTable slots) (ObjectArmIRQExtraInfo trigger target))
+        C.MSIIrq slots handle bus dev fun -> Object_IrqMsi (ObjectIRQMSI (renderCapTable slots) (ObjectIRQMSIExtraInfo handle bus dev fun))
+        C.IOAPICIrq slots ioapic pin ioapic_level polarity -> Object_IrqIOApic (ObjectIRQIOAPIC (renderCapTable slots) (ObjectIRQIOAPICExtraInfo ioapic pin ioapic_level polarity))
         C.IOPorts (start_port, end_port) -> Object_IOPorts (ObjectIOPorts start_port end_port)
-        C.ASIDPool slots (Just asidHigh) -> assert (M.null slots) Object_ASIDPool (ObjectASIDPool asidHigh)
-        C.RTReply -> Object_Reply
+        C.ASIDPool slots (Just asidHigh) -> assert (M.null slots) Object_AsidPool (ObjectASIDPool asidHigh)
+        C.RTReply -> Object_Reply UnitCompat
         C.TCB
             { slots
             , faultEndpoint
@@ -473,7 +459,7 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
                     , affin = Just affinity
                     , resume
                     } = extraInfo
-            in Object_TCB (ObjectTCB
+            in Object_Tcb (ObjectTCB
                 { slots = renderCapTable slots
                 , extra = ObjectTCBExtraInfo
                     { ipc_buffer_addr = ipcBufferAddr
@@ -511,9 +497,9 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.EndpointCap capObj capBadge capRights -> Cap_Endpoint (CapEndpoint (renderId capObj) capBadge (renderRights capRights))
         C.NotificationCap capObj capBadge capRights -> Cap_Notification (CapNotification (renderId capObj) capBadge (renderRights capRights))
         C.CNodeCap capObj capGuard capGuardSize -> Cap_CNode (CapCNode (renderId capObj) capGuard capGuardSize)
-        C.TCBCap capObj -> Cap_TCB (CapTCB (renderId capObj))
-        C.IRQHandlerCap capObj -> Cap_IRQHandler (CapIRQHandler (renderId capObj))
-        C.VCPUCap capObj -> Cap_VCPU (CapVCPU (renderId capObj))
+        C.TCBCap capObj -> Cap_Tcb (CapTCB (renderId capObj))
+        C.IRQHandlerCap capObj -> Cap_IrqHandler (CapIRQHandler (renderId capObj))
+        C.VCPUCap capObj -> Cap_VCpu (CapVCPU (renderId capObj))
         C.FrameCap { capObj, capRights, capCached, capExecutable } -> Cap_Frame (CapFrame (renderId capObj) (renderRights capRights) capCached capExecutable)
         C.PTCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
         C.PDCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
@@ -521,11 +507,11 @@ render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
         C.PGDCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
         C.PDPTCap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
         C.PML4Cap capObj _ -> Cap_PageTable (CapPageTable (renderId capObj))
-        C.ARMIRQHandlerCap capObj -> Cap_ArmIRQHandler (CapArmIRQHandler (renderId capObj))
-        C.IRQMSIHandlerCap capObj -> Cap_IRQMSIHandler (CapIRQMSIHandler (renderId capObj))
-        C.IRQIOAPICHandlerCap capObj -> Cap_IRQIOAPICHandler (CapIRQIOAPICHandler (renderId capObj))
+        C.ARMIRQHandlerCap capObj -> Cap_ArmIrqHandler (CapArmIRQHandler (renderId capObj))
+        C.IRQMSIHandlerCap capObj -> Cap_IrqMsiHandler (CapIRQMSIHandler (renderId capObj))
+        C.IRQIOAPICHandlerCap capObj -> Cap_IrqIOApicHandler (CapIRQIOAPICHandler (renderId capObj))
         C.IOPortsCap capObj -> Cap_IOPorts (CapIOPorts (renderId capObj))
-        C.ASIDPoolCap capObj -> Cap_ASIDPool (CapASIDPool (renderId capObj))
+        C.ASIDPoolCap capObj -> Cap_AsidPool (CapASIDPool (renderId capObj))
         C.SCCap capObj -> Cap_SchedContext (CapSchedContext (renderId capObj))
         C.RTReplyCap capObj -> Cap_Reply (CapReply (renderId capObj))
         x -> traceShow x undefined
@@ -537,7 +523,7 @@ renderFill :: Maybe [[String]] -> Fill
 renderFill = Fill . map f . concat . toList
   where
     f (dest_offset:dest_len:rest) = FillEntry
-        { range = FillEntryRange { start = start, end = end }
+        { range = FillEntryRange { start, end }
         , content
         }
       where
@@ -545,12 +531,12 @@ renderFill = Fill . map f . concat . toList
         len = read dest_len
         end = start + len
         content = case rest of
-            "CDL_FrameFill_FileData":file:file_offset:[] -> FillEntryContent_Data
+            ["CDL_FrameFill_FileData", file, file_offset] -> FillEntryContent_Data
                 (FillEntryContentFile
                     { file = tail (Data.List.init file)
                     , file_offset = read file_offset
                     })
-            "CDL_FrameFill_BootInfo":id:offset:[] -> FillEntryContent_BootInfo
+            ["CDL_FrameFill_BootInfo", id, offset] -> FillEntryContent_BootInfo
                 (FillEntryContentBootInfo
                     { id = case id of
                         "CDL_FrameFill_BootInfo_FDT" -> Fdt
@@ -558,13 +544,16 @@ renderFill = Fill . map f . concat . toList
                     })
 
 renderRights :: C.CapRights -> Rights
-renderRights = foldr f emptyRights
+renderRights = foldr f noRights
     where
     f right acc = case right of
-        C.Read -> acc { rights_read = True }
-        C.Write -> acc { rights_write = True }
-        C.Grant -> acc { rights_grant = True }
-        C.GrantReply -> acc { rights_grant_reply = True }
+        C.Read -> acc { read = True }
+        C.Write -> acc { write = True }
+        C.Grant -> acc { grant = True }
+        C.GrantReply -> acc { grant_reply = True }
+
+noRights :: Rights
+noRights = Rights False False False False
 
 objectLayers :: C.CoverMap -> [C.CoverMap]
 objectLayers = unfoldr step
@@ -575,4 +564,4 @@ objectLayers = unfoldr step
         then Nothing
         else
             let children = S.fromList . concat $ M.elems intermediate
-            in  Just $ M.partitionWithKey (const . not . (`S.member` children)) intermediate
+             in Just $ M.partitionWithKey (const . not . (`S.member` children)) intermediate
