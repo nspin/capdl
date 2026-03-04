@@ -7,6 +7,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module CapDL.PrintUtils where
 
 import CapDL.Model

@@ -4,6 +4,7 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 
 module CapDL.MakeModel where

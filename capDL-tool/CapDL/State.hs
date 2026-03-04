@@ -4,12 +4,15 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module CapDL.State where
 
 import CapDL.Model
 
 import Prelude ()
 import Prelude.Compat
+import Control.Monad
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Maybe

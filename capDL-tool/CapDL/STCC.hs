@@ -4,6 +4,8 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module CapDL.STCC(
                   somefn
                  ,transitiveClosure

@@ -7,6 +7,7 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 {-# HLINT ignore "Use camelCase" #-}
 {-# HLINT ignore "Use newtype instead of data" #-}

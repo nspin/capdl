@@ -4,6 +4,8 @@
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 -- Printer for C source format to be consumed by the CapDL initialiser.
 -- Note: corresponds to the -c/--code argument.
 

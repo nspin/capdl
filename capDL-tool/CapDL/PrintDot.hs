@@ -6,6 +6,8 @@
 
 {-# LANGUAGE FlexibleInstances #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module CapDL.PrintDot where
 
 import CapDL.Model
