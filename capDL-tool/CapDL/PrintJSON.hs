@@ -23,7 +23,7 @@ import Data.Foldable
 import Data.List
 import Data.Maybe
 import Data.Ord (comparing)
-import Data.Word (Word64)
+import Data.Word (Word8, Word64)
 import Debug.Trace (traceShow)
 import GHC.Generics (Generic)
 import qualified Data.Aeson as A
@@ -52,9 +52,17 @@ type CapTable = [(CapSlot, Cap)]
 data Spec = Spec
     { objects :: [NamedObject]
     , irqs :: [(Word, ObjID)]
+    , domain_schedule :: Maybe [DomainSchedEntry]
+    , domain_set_start :: Maybe Word
+    , domain_idx_shift :: Maybe Word
     , asid_slots :: [ObjID]
     , root_objects :: Range ObjID
     , untyped_covers :: [UntypedCover]
+    } deriving (Eq, Show, Generic, ToJSON, FromJSON)
+
+data DomainSchedEntry = DomainSchedEntry
+    { id :: Word8
+    , time :: Word64
     } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data Range a = Range
@@ -362,9 +370,15 @@ instance FromJSON UnitCompat where
 ---
 
 render :: C.ObjectSizeMap -> C.Model Word -> Spec
-render objSizeMap (C.Model arch objMap irqNode _ coverMap) = Spec
+render objSizeMap (C.Model arch objMap irqNode _ coverMap optDomSchedule domStart domIdxShift) = Spec
     { objects
     , irqs
+    , domain_schedule = fmap (map (\(id, time) -> DomainSchedEntry
+        { id = fromIntegral id
+        , time
+        })) optDomSchedule
+    , domain_set_start = domStart
+    , domain_idx_shift = Just domIdxShift
     , asid_slots = asidSlots
     , root_objects = Range 0 (toInteger numRootObjects)
     , untyped_covers = untypedCovers
