@@ -8,3 +8,6 @@
 resolver: lts-24.32
 
 local-bin-path: .
+
+nix:
+  path: [nixpkgs=../../nixpkgs]
