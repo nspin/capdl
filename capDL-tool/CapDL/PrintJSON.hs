@@ -307,6 +307,7 @@ data CapFrame = CapFrame
     { object :: ObjID
     , rights :: Rights
     , cached :: Bool
+    , executable :: Bool
     } deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data CapPageTable = CapPageTable
@@ -579,10 +580,11 @@ translate objSizeMap (C.Model arch objMap irqNode _ coverMap optDomSchedule domS
         C.TCBCap capObj -> Cap_Tcb $ CapTCB (translateId capObj)
         C.IRQHandlerCap capObj -> Cap_IrqHandler $ CapIRQHandler (translateId capObj)
         C.VCPUCap capObj -> Cap_VCpu $ CapVCPU (translateId capObj)
-        C.FrameCap { capObj, capRights, capCached } -> Cap_Frame $ CapFrame
+        C.FrameCap { capObj, capRights, capCached, capExecutable } -> Cap_Frame $ CapFrame
             { object = translateId capObj
             , rights = translateRights capRights
             , cached = capCached
+            , executable = capExecutable
             }
         C.PTCap capObj _ -> Cap_PageTable $ CapPageTable (translateId capObj)
         C.PDCap capObj _ -> Cap_PageTable $ CapPageTable (translateId capObj)
