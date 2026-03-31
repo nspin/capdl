@@ -191,6 +191,7 @@ data ObjectTCBExtraInfo = ObjectTCBExtraInfo
     , affinity :: Word
     , prio :: Word
     , max_prio :: Word
+    , fpu_disabled :: Bool
     , resume :: Bool
     , ip :: Word
     , sp :: Word
@@ -520,6 +521,7 @@ translate objSizeMap (C.Model arch objMap irqNode _ coverMap optDomSchedule domS
                     , sp = Just sp
                     , prio = Just prio
                     , max_prio = Just max_prio
+                    , fpuDisabled = Just fpuDisabled
                     , affin = Just affinity
                     , resume
                     } = extraInfo
@@ -530,6 +532,7 @@ translate objSizeMap (C.Model arch objMap irqNode _ coverMap optDomSchedule domS
                     , affinity = fromIntegral affinity
                     , prio = fromIntegral prio
                     , max_prio = fromIntegral max_prio
+                    , fpu_disabled = fpuDisabled
                     , resume = fromMaybe True resume
                     , ip
                     , sp
